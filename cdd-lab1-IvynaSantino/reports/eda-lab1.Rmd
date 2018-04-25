@@ -29,28 +29,34 @@ poucas_temp = read.csv(here("data/series_from_imdb-all.csv")) %>%
     filter(series_name %in% c("Arrow", "Vikings", "House of Cards", "American Horror Story"))
 ```
 
-*Quantidade de avaliações pelo IMDB*
+##Quantidade de avaliações pelo IMDB
+
+Explicação
 
 ```{r}
 poucas_temp %>%
-    ggplot(aes(x = season, y = UserVotes, color = series_name)) +
-    geom_point() +
-    xlab("Season") +
-    ylab("Votes") +
-    geom_jitter(width = .7, height = .7)
+    ggplot(aes(x = series_name, y = UserVotes, color = series_name)) +
+    geom_boxplot(width = .5) +
+    ggtitle("Quantidade de avaliações de cada série pelo IMDB") +
+    geom_jitter(width = .1, size = 2, alpha = .5) +
+    xlab("Nomes das séries") +
+    ylab("Quantidade de votos")
+
 ```
 
-*Distribuição das avaliações dos episódios*
+##Distribuição das avaliações dos episódios
+
+Explicação
 
 ```{r}
 poucas_temp %>%
     ggplot(aes(x = series_name, y = UserRating, color = series_name)) +
-    geom_jitter(width = .3) +
+    geom_jitter(width = .4) +
     ylim(5, 10) +
     labs(x = "Episodes", y = "Rate")
 ```
 
-*Avaliação por temporadas*
+##Avaliação por temporadas
 
 ```{r}
 poucas_temp %>% 
@@ -59,3 +65,26 @@ poucas_temp %>%
     geom_jitter(width = .1, size = 2, alpha = .3, color = "darkorange")
 ```
 
+##Sumário
+
+```{r}
+sumarios = poucas_temp %>% 
+    summarise(mediana = median(UserRating), 
+              media = mean(UserRating))
+
+poucas_temp %>% 
+    ggplot(aes(x = UserRating)) + 
+    geom_histogram(binwidth = .5, fill = "#FFAA00", color = "black") + 
+    geom_vline(xintercept = sumarios$media, color = "blue") + 
+    geom_vline(xintercept = sumarios$mediana, color = "brown") 
+
+```
+
+## Qual episódio mais bem avaliado?
+
+``` {r}
+
+poucas_temp %>%
+    filter(UserRating == max(UserRating))
+
+```
