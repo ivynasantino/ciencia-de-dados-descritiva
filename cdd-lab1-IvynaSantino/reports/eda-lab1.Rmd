@@ -1,21 +1,14 @@
 ---
 title: "EDA Análise de séries"
 output:
-  html_notebook:
-    toc: yes
-    toc_float: yes
   html_document:
     df_print: paged
     toc: yes
     toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
 ---
-
-# Perguntas do lab 1
-
-*1a. Qual das séries que você escolheu é mais bem avaliada no IMDB? A diferença é grande? Pequena? Muda de acordo com as temporadas da série?*
-
-*1b. Qual das séries que você escolheu tem episódios de qualidade mais irregular segundo o IMDB? A diferença é grande? Pequena?*
-
 
 ```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
 library(tidyverse)
@@ -23,19 +16,53 @@ library(here)
 theme_set(theme_bw())
 ```
 
-*Entre 4 a 6 temporadas e quantidade de votos parecidos*
+## Primeiramente, iremos carregar os dados das séries e filtrar as que queremos analisar. 
+
 ```{r}
 poucas_temp = read.csv(here("data/series_from_imdb-all.csv")) %>% 
     filter(series_name %in% c("Arrow", "Vikings", "House of Cards", "American Horror Story"))
 ```
 
-##Quantidade de avaliações pelo IMDB
 
-Explicação
+##Listagem das séries escolhidas
+
 
 ```{r}
 poucas_temp %>%
-    ggplot(aes(x = series_name, y = UserVotes, color = series_name)) +
+    mutate(Séries = series_name, Temporadas = season) %>%
+    select(Séries, Temporadas) %>%
+    unique()
+
+# Mostrar a quantidade de temporadas em cada série
+```
+
+As séries listadas foram escolhidas com o critério de similaridade ao número de temporadas e da quantidade
+de votos que cada uma obteve durante as avaliações feitas pelo público.
+
+Dessa forma, agora vamos fazer algumas observações sobre os gráficos e responder alguns questionamentos como: 
+
+- Qual das séries que você escolheu é mais bem avaliada no IMDB? A diferença é grande? Pequena? Muda de acordo com as temporadas da série? 
+
+Antes das observações serem feitas, serão feitas análises com média, mediana, percentil, mínimo, concentração, dispersão, IQR.
+
+- Média:
+- Mediana:
+- Percentil:
+- Mínimo:
+- Concentração:
+- Dispersão:
+- IQR:
+
+##Quantidade de avaliações pelo IMDB
+
+Com o bloxplot, podemos observar que os seriados possuem uma quantidade de votos concentrada em regiões próximas
+a sua mediana. Alguns pontos ficaram fora do bloxplot, significa dizer que obteve quantidade de avaliações tanto abaixo, como acima dos quartis. Podemos observar claramente isto no seriado Arrow, com alguns pontos registrados bem acima do ponto de concentração dos votos, mostrando que alguns episódios houveram uma maior ou menor quantidade de avaliações. Já em American Horror Story, observamos uma concentração maior dos pontos no bloxplot, indicando a similaridade da quantidade de votos em cada episódio.
+
+Obs.: Explicar sucintamente o que é bloxplot!
+```{r}
+poucas_temp %>%
+    mutate(Séries = series_name) %>%
+    ggplot(aes(x = series_name, y = UserVotes, color = Séries)) +
     geom_boxplot(width = .5) +
     ggtitle("Quantidade de avaliações de cada série pelo IMDB") +
     geom_jitter(width = .1, size = 2, alpha = .5) +
@@ -46,45 +73,96 @@ poucas_temp %>%
 
 ##Distribuição das avaliações dos episódios
 
-Explicação
+O gráfico abaixo mostra as notas que cada episódio obteve nos seriados ao longo das temporadas e com isso, podemos 
+observar que a maioria possui resultados entre o intervalo 7 a 9 nas avaliações. Citamos novamente a série Arrow, por obter algumas notas fora da concentração de pontos. Isto significa que em alguns episódios não corresponderam as
+expectativas do público que avaliou a pesquisa.
 
+Questionamento: Quem é mais concentrada? American ou as outras restantes?
 ```{r}
+# usando a nota de avaliação
 poucas_temp %>%
-    ggplot(aes(x = series_name, y = UserRating, color = series_name)) +
+    mutate(Séries = series_name) %>%
+    ggplot(aes(x = series_name, y = UserRating, color = Séries)) +
     geom_jitter(width = .4) +
+    ggtitle("Distribuição das avaliações dos episódios") +
     ylim(5, 10) +
-    labs(x = "Episodes", y = "Rate")
+    labs(x = "Episódios", y = "Notas")
 ```
 
-##Avaliação por temporadas
+## Avaliações ao longo do tempo
 
 ```{r}
 poucas_temp %>% 
-    ggplot(aes(x = series_name, y = UserRating)) + 
-    geom_boxplot(width = .5, outlier.color = NA) +   
-    geom_jitter(width = .1, size = 2, alpha = .3, color = "darkorange")
+  ggplot(aes(x = season_ep, y = UserRating, color = season)) + 
+  geom_line() + 
+  geom_point() 
 ```
 
-##Sumário
+## Dados estatísticos de cada seriado
 
 ```{r}
+# Mostrar numa tabela
 sumarios = poucas_temp %>% 
     summarise(mediana = median(UserRating), 
               media = mean(UserRating))
-
-poucas_temp %>% 
+poucas_temp %>%
     ggplot(aes(x = UserRating)) + 
-    geom_histogram(binwidth = .5, fill = "#FFAA00", color = "black") + 
-    geom_vline(xintercept = sumarios$media, color = "blue") + 
+    geom_histogram(binwidth = .5, fill = "white", color = "black") + 
+    geom_vline(xintercept = sumarios$media, color = "darkorange") + 
     geom_vline(xintercept = sumarios$mediana, color = "brown") 
+    
 
 ```
 
 ## Qual episódio mais bem avaliado?
 
 ``` {r}
-
+# mudar os nomes dos títulos
 poucas_temp %>%
+    select(series_name, Episode, season_ep, season, UserRating) %>%
     filter(UserRating == max(UserRating))
-
 ```
+
+
+## Qual episódio mais mal avaliado?
+``` {r}
+# mudar os nomes dos títulos
+poucas_temp %>%
+    select(series_name, Episode, season_ep, season, UserRating) %>%
+    filter(UserRating == min(UserRating))
+```
+Comentário: Será uma relação de amor e ódio na série Arrow?
+
+## Plot do gráfico entre amor e ódio
+
+
+*Comparação entre os dois episódios acima e as séries ao longo das temporadas*
+
+*Conclusao da letra a*
+
+Outro questionamento que podemos fazer é, qual das séries que você escolheu tem episódios de qualidade mais irregular segundo o IMDB? A diferença é grande? Pequena?
+
+#Quantidade se refere ao número de temporadas, de votos, avaliação,..?
+
+## Plot: Avaliação da série em cada temporada
+*1. Arrow*
+*2. American*
+*3. Vikings*
+*4. House of cards*
+
+Explicação
+
+## Plot: Votos da série em cada temporada
+# Fazer a análise se caiu/aumentou o número de votos
+
+*Conclusão da letra b*
+
+
+
+
+
+
+
+
+
+
