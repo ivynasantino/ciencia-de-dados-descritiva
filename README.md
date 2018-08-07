@@ -1,5 +1,4 @@
-# ciencia-de-dados-descritiva
-Repositório para os checkpoints da disciplina ciência de dados descritiva da UFCG 2018.1
+## Repositório para os checkpoints da disciplina ciência de dados descritiva 2018.1 - UFCG
 
 * Análise exploratória de dados
 * Visualização interativa
