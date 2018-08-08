@@ -1,0 +1,100 @@
+---
+title: "Encontros relâmpagos"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(GGally)
+library(tidyverse)
+library(openintro)
+library(modelr)
+library(here)
+library(readr)
+library(resample)
+library(broom)
+theme_set(theme_bw())
+```
+
+Para esse checkpoint, iremos utilizar dados de encontros relâmpagos e a impressão que as pessoas tiveram uma das outras depois desse date e quais características físicas e de personalidade atraiam-as. Primeiramente, vamos importar os dados:
+
+```{r, message=FALSE}
+encontros = read_csv(here("data/speed-dating.csv"))
+```
+
+### Então, o que faz uma pessoa gostar de outra?
+
+Selecionei algumas variáveis disponíveis no csv para encontrar uma possível resposta.
+
+- Like: no geral, quanto p1 gostou de p2?
+- Attr: quão atraente p1 achou p2
+- Sinc: quão sincero p1 achou p2
+- Fun: quão divertido p1 achou p2
+- Prob: que probabiliade p1 acha que p2 tem de querer se encontrar novamente com p- (escala 1-10)
+- Intel: quão inteligente p1 achou p2
+- Int_corr: correlação entre os interesses de p1 e p2
+- Shar: quanto p1 achou que compartilha interesses e hobbies com p2
+
+```{r, warning=FALSE}
+encontros %>% 
+  select(like, 
+         attr, 
+         sinc, 
+         fun, 
+         prob, 
+         intel, 
+         int_corr,
+         shar) %>% 
+  ggpairs(progress=FALSE)
+```
+
+A partir dessa observação, podemos ver que attr(atraência) e fun(divertida) tiveram resultados altos de correlação e por isso as escolhi para utilizá-las no modelo para o questiomento feito anteriormente.
+
+```{r}
+escolhidas <- encontros %>% 
+  select(like,
+         fun,
+         attr) %>% 
+  na.omit(.)
+```
+
+
+```{r}
+md_like = lm(like ~ fun + attr, data = escolhidas)
+tidy(md_like, conf.int = TRUE)
+```
+
+Com a tabela acima, podemos interpretar algumas colunas para embazar nosso modelo. Sendo assim, a coluna estimate, está relacionada o quanto cada uma das variáveis influencia na variável like. Dessa maneira, podemos observar que uma pessoa divertida(fun) influencia no like bem mais que a uma pessoa atraente. Já para o p-valor, mostra o quão significante são as variáveis para o like. Logo, podemos ver que os valores nesta coluna estão bem próximos de zero, então podemos dizer que essas variáveis representam bem o modelo.
+
+```{r}
+glance(md_like, conf.ini = TRUE)
+```
+
+As informações acima podemos explorar a medida do R quadrado, sendo ela:
+
+R quadrado: representa a porcentagem de variação na resposta que é explicada pelo modelo.
+
+Então, a partir dessa definições podemos realizar algumas conclusões. No R quadrado, temos o valor de aproximadamente 0.58, e quanto maior esse valor, melhor o modelo se ajusta nos dados.
+
+Depois de decoberto os dados e tiradas as conclusões acima, iremos gerar a visualização do modelo.
+
+```{r, message=FALSE}
+b <- encontros %>% 
+  data_grid(attr=seq_range(attr, 3),
+            fun=seq_range(fun, 3)) %>% 
+  add_predictions(model=md_like)
+
+encontros %>% 
+  ggplot(mapping = aes(x = fun,
+                       y = like)) +
+  geom_count(alpha=.4) +
+  geom_line(data = b, aes(y=pred, group=attr, color=attr)) +
+  geom_abline(intercept = 69, slope = -.65, color='red')
+
+```
+
+Como visto acima, podemos ver que as características que escolhemos influenciam na variável like. No eixo x, temos o quão divertida é a pessoa e as linhas inclinadas representam o quão a atraência influencia no like, representado no eixo y. Dessa forma, podemos observar que entre os intervalos de 5 e 7.5, possuem uma maior concentração de resultados para as duas variáveis.
+
+
+
