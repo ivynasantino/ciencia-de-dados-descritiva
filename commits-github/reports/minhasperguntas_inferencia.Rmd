@@ -1,0 +1,256 @@
+---
+title: "Commits github"
+author: "Ivyna Santino"
+date: "9 de julho de 2018"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(dplyr)
+library(readr)
+library(resample)
+library(plotly)
+theme_set(theme_bw())
+```
+
+Para este checkpoint, será utilizada a base de dados do github, onde iremos trabalhar com a quantidade de commits que cada linguagem recebeu na plataforma. Então, primeiramente iremos importar os dados:
+
+```{r, warning=FALSE, message=FALSE}
+commits = read_csv(here("data/github-users-committing-filetypes.csv"))
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+names(commits)
+```
+
+No entanto, essa base de dados é disponibilzado os dias, mês e ano que correspondente aos usuários que "commitaram" com a respectiva linguagem. Então, dessa forma para facilitar a manipulação dos dados e responder com melhor precisão as perguntas propostas, iremos criar as colunas para data, dia da semana e outra indicando que é final de semana.
+
+```{r, warning=FALSE, message=FALSE}
+commits <- commits %>%
+  mutate(date = paste(the_year,the_month,month_day,sep='-') %>% 
+           as.Date(.))
+
+commits$weekday <- weekdays(as.Date(commits$date))
+
+commits <- commits %>%
+  mutate(is_weekend = ifelse(weekday %in% c("sábado","domingo"),TRUE,FALSE))
+```
+
+Depois de realizar este processo de manipulação do nosso banco, podemos observar o que há nele com a visualização abaixo:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+commits %>% 
+  group_by(file_extension, the_year) %>%
+  summarise(count = n()) %>% 
+  plot_ly(x = ~count,
+          y = ~file_extension,
+          type = ~"scatter",
+          color = ~the_year,
+          text = ~paste("Linguagem: ", file_extension,
+                        '<br> Qnt de ocorrências: ', count)) %>% 
+  layout(title = "Distribuição das linguagens e sua ocorrência entre os usuários")
+```
+
+Antes de tudo, é bom notar que para o ano de 2017 só temos dados até o primeiro semestre, então algumas linguagens possuem poucas ocorrências devido a isso. Mas, com este gráfico, podemos notar que linguagens como C não chegaram nem a metade da sua ocorrência no ano de 2016, durante o primeiro semestre de 2017, este fator acontece com outras linguagens como Java e c++. Também podemos destacar que há extensões que só foram utilizadas até então no ano de 2016, isto ocorre com cc. Outro ponto é extensões que já no primeiro semestre de 2017 já superaram mais da metade do ano anterior, isto aconteceu com a extensão woff, ou seja, pode ser uma possível extensão em potencial na comunidade tecnológica.
+
+Depois de visto alguns dos dados contidos no banco que estemos trabalhando, vamos responder as perguntas propostas ao longo do notebook.
+
+### 1. Pode se dizer que o grupo de linguagens formado por go, python e ruby que se destaca nas férias de inverno ou de verão?
+
+Obs.: Contanto no hemisfério Sul: Férias de verão: mês de janeiro
+                                  Férias de inverno: mês de junho
+
+```{r}
+ferias_inverno <- commits %>% 
+  filter(the_month == 6,
+         file_extension %in% c("go", "py", "rb"))
+
+ferias_verao <- commits %>% 
+  filter(the_month == 1,
+         file_extension %in% c("go", "py", "rb"))
+```
+
+
+```{r}
+ferias_inverno %>% 
+  ggplot(aes(x = file_extension,
+             y = users,
+             fill = file_extension)) +
+  geom_col() +
+  labs(title = "Férias de inverno")
+
+ferias_verao %>% 
+  ggplot(aes(x = file_extension,
+             y = users,
+             fill = file_extension)) +
+  geom_col() +
+  labs(title = "Férias de verão")
+```
+
+Podemos notar que a linguagem python se destaca no grupo com relação aos usuários da plataforma, seguida de ruby e depois go e que nas férias de inverno no Hemifério Sul(inverso no Hemisfério Norte) há uma maior quantidade de usuários que utilizam essas linguagens.
+
+```{r}
+amostra_ferias_inverno <- sample_n(ferias_inverno, 50)
+colnames(amostra_ferias_inverno) <- c("file_extension","users_ferias_inverno")
+
+amostra_ferias_verao <- sample_n(ferias_inverno, 50)
+colnames(amostra_ferias_verao) <- c("file_extension","users_ferias_verao")
+
+
+b <- bootstrap(amostra_ferias_inverno, 
+               mean(users_ferias_inverno))
+media_ferias_inverno <- CI.bca(b, probs = c(.025, .975))
+media_ferias_inverno
+
+b <- bootstrap(amostra_ferias_verao, 
+               mean(users_ferias_verao))
+media_ferias_verao <- CI.bca(b, probs = c(.025, .975))
+media_ferias_verao
+  
+```
+
+```{r}
+df = data.frame(rbind(media_ferias_inverno,
+                      media_ferias_verao))
+df$medida = row.names(df)
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Para fazer o intervalo de confiança entre a quantidade de usuários nas férias de inverno e de verão, opitei por utilizar a estatística da média. E com o gráfico acima, não podemos dizer de certeza algo, pois os intervalos de interceptam.
+
+#### Podemos dizer que esse grupo de linguagens tem popularidade crescente com o passar do tempo?
+
+```{r}
+py_go_rb <- commits %>% 
+  filter(file_extension %in% c("go", "py", "rb"))
+
+```
+
+Para gerar essa visualização filtrei os anos para não ficar muito poluída.
+
+```{r}
+py_go_rb %>% 
+  filter(the_year == 2017) %>% 
+  ggplot(aes(x = date,
+             y = users,
+             color = file_extension)) +
+  geom_line() +
+  labs(title = "Número de usuários ao longo do ano de 2017")
+
+py_go_rb %>% 
+  filter(the_year == 2016) %>% 
+  ggplot(aes(x = date,
+             y = users,
+             color = file_extension)) +
+  geom_line() +
+  labs(title = "Número de usuários ao longo do ano de 2016")
+```
+
+Podemos observar que em todas as linguagens há oscilações, provavelmente está relacionado ao decrescimo de usuários durante o final de semana, pois há um padrão entre os picos e vales. Mas voltando a nossa observação, podemos notar que a linguagem python cresce entre no primeiro semestre do ano de 2016 e cai por um período do segundo semestre, cresce e cai novamente com relação a quantidade de usuários. Já a linguagem Ruby tem muitos usuários utilizando no primeiro semestre, assim como python, mas que no segundo semestre de 2016 cai um pouco sua utilização mas mantém um padrão. E Go, mantém um padrão entre os usuários, tendo crescimento nos últimos meses de 2016. 
+No entanto, o interessante dessa visualização é notar que no mês de janeiro todas as linguagens cai bastante entre os usuários, talvez um dos fatores seja o inverno rigoso no hemisfério norte e as férias de verão no Hemisfério Sul.
+
+### 2. Linguagens como java, c++ e javascript, pode-se dizer que elas mantiveram o nível de popularidade entre os usuários ao longo do tempo? 
+
+```{r}
+java_cpp_js <- commits %>% 
+  filter(file_extension %in% c("java", "cpp", "js"))
+```
+
+Assim como na pergunta anterior, também filtrei o dado do ano para facilitar na visualização.
+```{r}
+java_cpp_js %>% 
+  filter(the_year == 2017) %>% 
+  ggplot(aes(x = date,
+             y = users,
+             color = file_extension)) +
+  geom_line() +
+  labs(title = "Ano 2017")
+
+java_cpp_js %>% 
+  filter(the_year == 2016) %>% 
+  ggplot(aes(x = date,
+             y = users,
+             color = file_extension)) +
+  geom_line() +
+  labs(title = "Ano 2016")
+
+```
+
+Como podemos observar, ao longo do tempo, apesar de ainda terem uma grande quantidade commits, a utilização desse grupo de linguagens está caindo entre os usuários, principalmente C++.  
+
+
+```{r}
+js_pop <- java_cpp_js %>% 
+  filter(file_extension == "js")
+
+cpp_pop <- java_cpp_js %>% 
+  filter(file_extension == "cpp")
+
+java_pop <- java_cpp_js %>% 
+  filter(file_extension == "java")
+```
+
+Fazendo IC
+```{r}
+js_boot <- bootstrap(js_pop, mean(users))
+media_js <- CI.bca(js_boot, probs = c(.025, .975))
+media_js
+
+cpp_boot <- bootstrap(js_pop, mean(users))
+media_cpp <- CI.bca(cpp_boot, probs = c(.025, .975))
+media_cpp
+
+java_boot <- bootstrap(java_pop, mean(users))
+media_java <- CI.bca(java_boot, probs = c(.025, .975))
+media_java
+
+```
+
+```{r}
+df = data.frame(rbind(media_js,
+                      media_java,
+                      media_cpp))
+df$medida = row.names(df)
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Dessa forma, fazendo o intervalo de confiança, não podemos afirmar nada entre a linguagem javascript e c++ pois há intercepto entre as duas, mas para a linguagem java há uma discrepância entre os intervalos das outras linguagens do grupo.
+
+#### Aproveitando a pergunta anterior, podemos observar que há uma maior popularidade de usuários da linguagem javascript no dia da independência dos EUA do que no Brasil?
+
+```{r}
+js_independencias <- java_cpp_js %>% 
+  filter(the_month %in% c(7,9),
+         month_day %in% c(4,7),
+         file_extension == "js")
+```
+
+
+```{r}
+js_independencias %>% 
+  plot_ly(x = ~date,
+         y = ~users,
+         size = ~users,
+         color = ~date,
+         type = "scatter") %>% 
+  layout(title = "Quantidade de usuários da linguagem javascript nos dias da independências do EUA e do Brasil")
+```
+
+Primeiramente houveram poucos ocorrências de usuários nessas datas, mas podemos ver que na data da proclamação do Brasil tem um menor número de users, enquanto no 4 de julho, a independência dos EUA tiveram bastante usuários utilizando a plataforma para essa linguagem.

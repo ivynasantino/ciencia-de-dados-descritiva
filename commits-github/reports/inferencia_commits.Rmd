@@ -1,0 +1,205 @@
+---
+title: "Commits github"
+author: "Ivyna Santino"
+date: "9 de julho de 2018"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(dplyr)
+library(readr)
+library(resample)
+theme_set(theme_bw())
+```
+
+Para este checkpoint, iremos utilizar uma base de dados do github, onde iremos trabalhar com a quantidade de commits que cada linguagem recebeu na plataforma. Então, primeiramente iremos importar os dados:
+
+```{r, warning=FALSE, message=FALSE}
+commits = read_csv(here("data/github-users-committing-filetypes.csv"))
+```
+
+Ao importar o csv, notei que na base de dados não fornecia os dias da semana, mas somente a data. Dessa forma, será necessário descobrir qual o dia equivalente para essas datas, com o objetivo de facilitar nosso trabalho e responder as questões propostas abaixo.
+
+```{r, warning=FALSE, message=FALSE}
+commits <- commits %>%
+  mutate(date = paste(the_year,the_month,month_day,sep='-') %>% 
+           as.Date(.))
+
+commits$weekday <- weekdays(as.Date(commits$date))
+
+commits <- commits %>%
+  mutate(is_weekend = ifelse(weekday %in% c("sábado","domingo"),TRUE,FALSE))
+
+dados_filtrados <- commits %>%
+  filter(file_extension %in% c("js","py"))
+```
+
+Outra informação relevante é foi a escolha das linguagens para análise, sendo elas: javascript e python, representadas respectivamente como js e py.
+
+Dessa forma, iremos fazer uma breve observação com os dados que temos em mãos. Para isso, filtrei os commits pelos anos(2017 e 2016) de forma que, ficassem em gráficos separados e permitir a comparação entre as duas linguagens de maneira mais intuitiva.
+
+```{r}
+dados_filtrados %>% 
+  filter(the_year == 2017) %>% 
+  ggplot(aes(x = date,
+             y = users,
+             color = file_extension)) + 
+  geom_line() +
+  labs(title = "Número de commits ao longo do ano de 2017")
+
+dados_filtrados %>% 
+  filter(the_year == 2016) %>% 
+  ggplot(aes(x = date,
+             y = users,
+             color = file_extension)) + 
+  geom_line() +
+  labs(title = "Número de commits ao longo do ano de 2016")
+
+
+```
+
+Com o gráfico acima, podemos ver que há um padrão nos vales a cada mês, acredito que essa queda se dê pelo fato dos commits dessas linguagens diminuírem durante os finais de semana.
+
+### Então, demonstrados os dados que iremos trabalhar, podemos dizer que para cada uma das linguagens, há uma diferença significativa na sua popularidade durante a semana e durante o fim de semana? Essa diferença é grande? 
+
+Antes de mostrar os gráficos, iremos tratar os dados afim de melhorar a visualização separando os dias úteis e finais de semana para cada linguagem.
+
+```{r}
+dados_js = dados_filtrados %>% 
+  select(file_extension, users, weekday, is_weekend) %>% 
+  filter(file_extension == "js")
+
+js_fds = dados_js %>% 
+  filter(is_weekend == TRUE)
+
+js_util = dados_js %>% 
+  filter(is_weekend == FALSE)
+
+
+dados_py = dados_filtrados %>% 
+  select(file_extension, users, weekday, is_weekend) %>% 
+  filter(file_extension == "py")
+
+py_fds = dados_py %>% 
+  filter(is_weekend == TRUE)
+
+py_util = dados_py %>% 
+  filter(is_weekend == FALSE)
+
+```
+
+
+```{r}
+js_fds %>% 
+  ggplot(aes(x = users)) +
+  geom_histogram(binwidth = 100,
+                 fill = "#FFDEAD") +
+  labs(title = "Distribuição dos commits da linguagem javascript durante o final de semana")
+
+
+js_util %>% 
+  ggplot(aes(x = users)) +
+  geom_histogram(binwidth = 100,
+                 fill = "#F4A460") +
+  labs(title = "Distribuição dos commits da linguagem javascript durante os dias úteis")
+
+```
+
+
+```{r}
+py_fds %>% 
+  ggplot(aes(x = users))+
+  geom_histogram(binwidth = 100,
+                 fill = "#F08080") +
+  labs(title = "Distribuição dos commits da linguagem python durante o final de semana")
+
+py_util %>% 
+  ggplot(aes(x = users))+
+  geom_histogram(binwidth = 100,
+                 fill = "#CD5C5C") + 
+  labs(title = "Distribuição dos commits da linguagem python durante os dias uteis")
+
+
+```
+
+Ao olhar os gráficos, podemos ver que a grande maioria dos commits caem durante o fds em ambas as linguagens. No entanto, para observarmos melhor esses resultados, podemos calcular a média desses números através de uma amostra e inferir alguns resultados.
+
+```{r}
+amostra_js_fds <- sample_n(js_fds, 100)
+colnames(amostra_js_fds) <- c("file_extension","users_js_fds","is_weekend")
+amostra_js_util <- sample_n(js_util, 100)
+colnames(amostra_js_util) <- c("file_extension","users_js_util","is_weekend")
+
+b <- bootstrap(amostra_js_fds, mean(users_js_fds))
+media_js_fds <- CI.bca(b, probs = c(.025, .975))
+media_js_fds
+
+b <- bootstrap(amostra_js_util, mean(users_js_util))
+media_js_util <- CI.bca(b, probs = c(.025, .975))
+media_js_util
+
+amostra_py_fds <- sample_n(py_fds, 100)
+colnames(amostra_py_fds) <- c("file_extension","users_py_fds","is_weekend")
+amostra_py_util <- sample_n(py_util, 100)
+colnames(amostra_py_util) <- c("file_extension","users_py_sem","is_weekend")
+
+b <- bootstrap(amostra_py_fds, mean(users_py_fds))
+media_py_fds <- CI.bca(b, probs = c(.025, .975))
+media_py_fds
+
+b <- bootstrap(amostra_py_util, mean(users_py_sem))
+media_py_util <- CI.bca(b, probs = c(.025, .975))
+media_py_util
+
+
+```
+
+```{r}
+df = data.frame(rbind(media_js_fds,
+                      media_js_util,
+                      media_py_fds,
+                      media_py_util))
+df$medida = row.names(df)
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+A partir desse gráfico, podemos observar que os intervalos são bem pequenos e os que estão mais próximos são javascript quando usado no final de semana e python quando usado dia de semana. E, algo que também se destaca é com relação a linguagem javascript, possuindo o maior intervalo e na sua utilização nos dias úteis. Sendo assim, é visível que as linguagens trabalhadas são mais utilizadas nos dias úteis.
+
+### Outro questionamento, existe uma diferença significativa entre a popularidade das duas linguagens nos fins de semana?
+
+Para responder essa questão, iremos calcular o desvio padrão das linguagens no final de semana.
+
+```{r}
+b <- bootstrap(amostra_js_fds, sd(users_js_fds))
+sd_js_fds <- CI.bca(b, probs = c(.025, .975))
+sd_js_fds
+
+b <- bootstrap(amostra_py_fds, sd(users_py_fds))
+sd_py_fds <- CI.bca(b, probs = c(.025, .975))
+sd_py_fds
+
+```
+
+```{r}
+df = data.frame(rbind(sd_js_fds,
+                      sd_py_fds))
+df$medida = row.names(df)
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Com o gráfico e os dados de desvio padrão gerados acima, podemos ver que os desvios padrões tem uma diferença significativa entre as linguagens, no caso da linguagem javascript possui um intervalo de aproximadamente entre 559 a 792, uma diferença de cerca de 233. Enquanto python, possui um intervalo de aproximadamente entre 395 a 282, com diferença de cerca de 113. Dessa forma, podemos concluir que existe uma diferença entre a popularidade das linguagens escolhidas nos commits do final de semana na plataforma github.  
