@@ -1,0 +1,135 @@
+---
+title: "Tipos de filme de Carrie Fisher"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+Assistir um filme é uma boa forma de se divertir e ganhar conhecimento, e dessa maneira, muita das vezes acaba que nos envolvemos com a história e ficamos fãs dessa arte e dos atores envolvidos. Então, a seguir será analisado filmes que a atriz Carrie Fisher trabalhou através da base de dados da Rotten Tomatoes.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(cluster)
+library(plotly)
+library(ggdendro)
+library(knitr)
+
+source(here::here("code/lib.R"))
+theme_set(theme_bw())
+
+
+```
+Para começar, iremos importar os dados da atriz Carrie Fisher do Rotten Tomatoes.
+
+```{r, message=FALSE, warning=FALSE}
+import_data("carrie_fisher")
+```
+
+```{r read}
+filmes = read_imported_data()
+```
+
+Para quem não reconhece de cara ou não recorda logo da atriz pelo nome, irá lembrar de sua atuação na saga Star Wars, interpretando a Princesa Léia. Então, logo abaixo está listado os filmes com os dados dos papéis realizados e os anos de lançamentos que a atriz trabalhou presentes no Rotten Tomatoes.
+
+```{r, message=FALSE, warning=FALSE}
+filmes %>% 
+    select(filme, papel, ano)
+```
+
+Depois de listados, iremos iniciar as análises dos títulos dos filmes através das avaliações recebidas e da sua bilheteria e realizar o agrupamento dos títulos das obras.
+
+```{r, message=FALSE, warning=FALSE}
+agrupamento_h_2d = filmes %>% 
+    column_to_rownames("filme") %>%
+    select(avaliacao, bilheteria) %>%
+    dist(method = "euclidean") %>% 
+    hclust(method = "centroid")
+
+ggdendrogram(agrupamento_h_2d, rotate = TRUE, size = 2, theme_dendro = F) + 
+    labs(y = "Dissimilaridade", x = "Filme", title = "Dendrograma (centroid)")
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+agrupamento_h = filmes %>% 
+    mutate(nome = paste0(filme, " (av=", avaliacao, ")")) %>% 
+    as.data.frame() %>% 
+    column_to_rownames("filme") %>% 
+    select(avaliacao) %>%
+    dist(method = "euclidian") %>% 
+    hclust(method = "ward.D")
+
+ggdendrogram(agrupamento_h, rotate = TRUE, size = 2, theme_dendro = F) + 
+    labs(y = "Dissimilaridade", x = "Filme", title = "Dendrograma (ward.D)")
+```
+
+
+As visualizações acima, os dendogramas(calculados pelo clust centroid e ward.D) mostram que podemos formar alguns grupos de filmes que possuem dados próximos de bilheteria e avaliação. Logo abaixo, a visualização fica mais intuitiva para observar a formação desses grupos.
+
+```{r}
+get_grupos <- function(agrupamento, num_grupos){
+    agrupamento %>% 
+        cutree(num_grupos) %>% 
+        as.data.frame() %>% 
+        mutate(label = rownames(.)) %>% 
+        gather(key =  "k", value = "grupo", -label) %>% 
+        mutate(grupo = as.character(grupo))
+}
+
+atribuicoes = get_grupos(agrupamento_h, num_grupos = 1:5)
+
+atribuicoes = atribuicoes %>% 
+    left_join(filmes, by = c("label" = "filme"))
+
+atribuicoes %>% 
+    ggplot(aes(x = "Filmes", y = avaliacao, colour = grupo)) + 
+    geom_jitter(width = .02, height = 0, size = 2.5, alpha = .6) + 
+    facet_wrap(~ paste(k, " grupos")) + 
+    scale_color_brewer(palette = "Dark2")
+
+
+``` 
+
+Como podemos observar, com a visualização acima e o dendograma, nesse caso utilizamos a segunda forma exposta para fazer o agrupamentos dos conjuntos de dados estão distribuídos de um até quatro grupos de filmes a partir da avaliação recebida pelo público e, dessa maneira, podemos ver que 3 grupos é um bom número para realizar o agrupamento, já que os filmes possuem uma certa proximidade de similaridade de notas de avaliação.
+
+
+```{r, message=FALSE, warning=FALSE}
+k_escolhido = 3
+
+atribuicoes %>% 
+    filter(k == k_escolhido) %>% 
+    ggplot(aes(x = reorder(label, avaliacao), y = avaliacao, colour = grupo)) + 
+    geom_jitter(width = .02, height = 0, size = 4, alpha = .6) + 
+    facet_wrap(~ paste(k, " grupos")) + 
+    scale_color_brewer(palette = "Dark2") + 
+    labs(x = "Filmes", y = "Avaliação") +
+    coord_flip() 
+```
+
+Então, a partir das visualizações geradas, podemos destacar tipos de categorias. Sendo elas, filmes com avaliação e bilheteria alta, outro com avaliação e bilheteria médios e valores baixos tanto para avaliação, quanto para bilheteria.
+
+
+```{r, message=FALSE, warning=FALSE}
+atribuicoes %>%
+    filter(k == k_escolhido) %>% 
+    plot_ly(x = ~avaliacao,
+           y = ~bilheteria,
+           color = ~grupo,
+           text = ~paste('Filme: ', filmes$filme,
+                         '<br>Papel: ', filmes$papel,
+                         '<br>Ano: ', filmes$ano)) %>% 
+    layout(title = "Relação entre bilheteria e avaliação dos filmes de Carrie Fisher",
+           yaxis = list(title = "Bilheteria"),
+           xaxis = list(title = "Avaliação"))
+    
+
+```
+
+Dessa forma, é interessante observar que o grupo 1(verde) possui os maiores números para avaliações e bilheteria e a grande parte dos filmes são da saga de sucesso mundial, Star Wars.
+
+
+
+
+

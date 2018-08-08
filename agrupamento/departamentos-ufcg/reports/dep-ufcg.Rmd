@@ -1,0 +1,137 @@
+---
+title: "Agrupamento de dados dos servidores públicos das unidades acadêmicas da UFCG"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(GGally)
+library(plotly)
+library(knitr)
+library(IDPmisc)
+library(broom)
+
+theme_set(theme_bw())
+
+```
+
+Nessa análise iremos agrupar os dados fornecidos pelo dump de abril dos dados abertos do governo federal sobre seus servidores, publicados no portal de transparência do governo federal.
+
+Contém apenas informações de pessoal nas Unidades Acadêmicas da UFCG, excluindo pessoal de administração nos Centros. Dessa forma, os dados que seram utilizados estão disponíveis abaixo:
+
+```{r, message=FALSE, warning=FALSE}
+departamentos = read_csv("../data/ufcg_uas_com_matriculas.csv") %>% 
+  select(unidade = `UORG_LOTACAO`, 
+         `Professor 20h`, 
+         `Professor 40h ou DE`, 
+         idade_25perc, 
+         idade_mediana, 
+         idade_75perc,
+         CAMPUS)
+```
+
+Dessa forma, para ficar mais claro, logo abaixo estão as variáveis que serão utilizadas:
+
+* unidade: Unidade acadêmica de lotação do funcionário
+* Professor 20h: Número de professores com carga horária 20h/semana na UA
+* Professor 40h ou DE: Número de professores com carga horária 40h/semana na UA, sejam eles Dedicação Exclusiva ou não
+* idade_25perc, idade_mediana e idade_75perc : 25, 50 e 75 percentil da idade dos funcionários no cargo (ex: idade_25perc = 10 significa que 25% dos funcionários, sejam eles professores ou não, da UA tem 10 anos ou menos na profissão.)
+
+Obs.: nessa base de dados há mais variáveis, mas selecionei para análise as que foram listadas acima.
+
+```{r,message=FALSE, warning=FALSE}
+departamentos %>% 
+  select(-unidade) %>% 
+  ggpairs()
+
+```
+
+A partir desse gráfico, percebemos que não há uma associação muito forte entre as variáveis utilizadas, o que dificulta a formação de possíveis grupos. Dessa maneira, podemos rearranjar os dados, como fiz logo abaixo:
+
+```{r, message=FALSE, warning=FALSE}
+departamento = departamentos %>% 
+  mutate_at(vars(`Professor 20h`,
+                 `Professor 40h ou DE`,
+                 idade_25perc,
+                 idade_mediana,
+                 idade_75perc,
+                 CAMPUS),
+            funs(log))
+
+NaRV.omit(departamento %>% 
+            select(-unidade) %>% 
+            ggpairs())
+
+```
+
+Como podemos observar agora, aumentou um pouco as associações entre as variáveis, mas ainda está difícil de formar grupos. Então, podemos aplicar o algoritmo k-means.
+
+### Porque usar este algoritmo?
+
+Nesse algoritmo escolhido pontos centrais e a partir das distâncias entre os pontos ao redor do central é formado os grupos.
+
+```{r, message=FALSE, warning=FALSE}
+set.seed(31)
+
+exp_k = tibble(k = 1:15) %>%
+  group_by(k) %>% 
+  do(
+    kmeans(NaRV.omit(select(departamentos, -unidade)),
+           centers = .$k,
+           nstart = 20) %>% 
+      glance()
+  )
+
+exp_k %>% 
+  ggplot(aes(x = k, y = betweenss / totss)) +
+  geom_line() +
+  geom_point()
+```
+
+Nessa observação, podemos concluir que a partir do k com valor 4, os dados começam a seguir um "padrão"(as diferenças entre os pontos ficam menores), então podemos estabelecer a formação de 4 grupos a partir da nossa base das unidades acadêmicas da UFCG.
+
+
+```{r, message=FALSE, warning=FALSE}
+set.seed(31)
+
+num_cluters = 4
+
+km = departamentos %>% 
+  select(-unidade) %>% 
+  kmeans(centers = num_cluters, 
+         nstart = 20)
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+agrupa = km %>% 
+  augment(departamento) %>% 
+  gather(key = "variáveis",
+         value = "valor",
+         -unidade,
+         -.cluster)
+
+agrupa %>% 
+  ggplot(aes(y = `variáveis`,
+             x = valor,
+             group = unidade,
+             colour = .cluster)) +
+  geom_point() +
+  facet_wrap(~ .cluster)
+```
+
+A partir dessas análises e transformações de dados, podemos formar os seguintes grupos:
+
+* Grupo 1: é formado por unidades acadêmicas com professores com carga horária de 40h ou DE e 20h e com tempo de atuação na profissão de 75% dos funcionários.
+
+* Grupo 2: é formado por unidades acadêmicas com maioria de professores com carga horária de 40h ou DE e com tempo de atuação na profissão de 50% a 75% dos funcionários.
+
+* Grupo 3: é formado por unidades acadêmicas com maioria de professores com carga horária de 40h ou DE, tempo de atuação na profissão de 75% dos funcionários e de vários campus da UFCG.
+
+* Grupo 4: é formado por unidades acadêmicas com poucos professores com carga horária de 20h e 40h ou DE e tempo de atuação na profissão de 75% dos funcionários.
+

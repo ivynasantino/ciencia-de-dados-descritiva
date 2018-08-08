@@ -1,0 +1,127 @@
+---
+title: "Tipos de filme de FULANO(A)"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(cluster)
+library(plotly)
+library(ggdendro)
+
+source(here::here("code/lib.R"))
+theme_set(theme_report())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = TRUE)
+
+paleta = c("#404E4D",
+           "#92DCE5",
+           "#938BA1",
+           "#2D3142",
+           "#F4743B")
+```
+
+```{r}
+## ANTES DE USAR
+# Para criar data/movies.csv
+# import_data("tom_cruise") ou com o ator/atriz que você escolher
+```
+
+
+```{r read}
+filmes = read_imported_data()
+```
+
+## Descrição
+
+```{r}
+filmes %>% 
+    ggplot(aes(x = ano, y = bilheteria)) + 
+    geom_point(size = 4, color = paleta[1]) 
+```
+
+
+
+```{r}
+filmes %>% 
+    ggplot(aes(x = bilheteria)) + 
+    geom_histogram(binwidth = 15, fill = paleta[2], color = "black") + 
+    geom_rug(size = .5) 
+```
+
+```{r}
+filmes %>% 
+    ggplot(aes(x = avaliacao)) + 
+    geom_histogram(binwidth = 10, boundary = 0, fill = paleta[3], color = "black") + 
+    geom_rug(size = .5) 
+```
+
+## Estrutura de grupos?
+
+```{r}
+p = filmes %>% 
+    ggplot(aes(x = "", y = bilheteria, label = filme)) + 
+    geom_jitter(width = .05, alpha = .3, size = 3) + 
+    labs(x = "")
+
+ggplotly(p)
+```
+
+## Agrupamento hierárquico
+
+```{r}
+agrupamento_h = filmes %>% 
+    mutate(nome = paste0(filme, " (av=", avaliacao, ")")) %>% 
+    as.data.frame() %>% 
+    column_to_rownames("filme") %>% 
+    select(avaliacao) %>%
+    dist(method = "euclidian") %>% 
+    hclust(method = "ward.D")
+
+ggdendrogram(agrupamento_h, rotate = T, size = 2, theme_dendro = F) + 
+    labs(y = "Dissimilaridade", x = "", title = "Dendrograma")
+```
+
+```{r}
+get_grupos <- function(agrupamento, num_grupos){
+    agrupamento %>% 
+        cutree(num_grupos) %>% 
+        as.data.frame() %>% 
+        mutate(label = rownames(.)) %>% 
+        gather(key =  "k", value = "grupo", -label) %>% 
+        mutate(grupo = as.character(grupo))
+}
+
+atribuicoes = get_grupos(agrupamento_h, num_grupos = 1:6)
+
+atribuicoes = atribuicoes %>% 
+    left_join(filmes, by = c("label" = "filme"))
+
+atribuicoes %>% 
+    ggplot(aes(x = "Filmes", y = avaliacao, colour = grupo)) + 
+    geom_jitter(width = .02, height = 0, size = 1.6, alpha = .6) + 
+    facet_wrap(~ paste(k, " grupos")) + 
+    scale_color_brewer(palette = "Dark2")
+
+```
+
+```{r}
+k_escolhido = 3
+
+atribuicoes %>% 
+    filter(k == k_escolhido) %>% 
+    ggplot(aes(x = reorder(label, avaliacao), y = avaliacao, colour = grupo)) + 
+    geom_jitter(width = .02, height = 0, size = 3, alpha = .6) + 
+    facet_wrap(~ paste(k, " grupos")) + 
+    scale_color_brewer(palette = "Dark2") + 
+    labs(x = "", y = "Avaliação RT") + 
+    coord_flip() 
+```
+
