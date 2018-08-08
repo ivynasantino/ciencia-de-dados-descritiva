@@ -1,1 +1,0 @@
-# encontros-relampagos
