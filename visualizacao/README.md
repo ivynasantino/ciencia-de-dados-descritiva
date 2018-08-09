@@ -1,0 +1,1 @@
+O objetivo desse checkpoint é exercitar o uso dos critérios de projeto de visualizações e tecnologias que permitem interação para reimplementar uma visualização que você já fez no problema 1. Nossa intenção aqui é que você tenha pouco trabalho procurando e bolando uma análise, e tenha trabalho pensando sobre a visualização e deixando-a o mais legível possível.
