@@ -1,0 +1,1 @@
+O objetivo desse checkpoint é trabalhar o agrupamento de dados, detectar padrões e formar grupos a partir dos resultados obtidos, através das base de dados do Rotten Tomatoes e de informações sobre o servidores dos departamentos da UFCG.
