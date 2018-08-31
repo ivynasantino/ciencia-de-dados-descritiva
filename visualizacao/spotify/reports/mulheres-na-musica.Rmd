@@ -1,0 +1,210 @@
+---
+title: "Análise dos movimentos musicais através de vozes femininas"
+author: "Ivyna Santino"
+date: "29 de maio de 2018"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyverse)
+library(here)
+library(plotly)
+theme_set(theme_bw())
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+tropicalistas = read_csv(here("data/mulheres-tropicalismo.csv"))
+jovem_guarda = read_csv(here("data/mulheres_jovem_guarda.csv"))
+bossa = read_csv(here("data/mulheres_bossa_nova.csv"))
+
+trop_jovem <- full_join(tropicalistas, jovem_guarda) 
+cancoes <- merge(trop_jovem, bossa, all = TRUE)
+
+```
+
+No Brasil houveram alguns movimentos musicais ao decorrer dos anos, e dessa vez, decidi analisar alguns deles nas vozes de cantoras que se destacaram em cada um desses movimentos a partir dos dados disponibilizados pela [API do Spotify](https://beta.developer.spotify.com/dashboard/). Dessa maneira, escolhi para representar a Jovem guarda as cantoras: Celly Campelo, Wanderléa e Diana, para a Bossa nova: Elis Regina, Nara Leão e Maysa e por fim, o Tropicalismo: Os mutantes, tendo como vocalista Rita Lee, Maria Bethânia e Gal Costa. 
+
+#### Abaixo estão listadas as músicas que serão analisadas e informações como artista, ano de lançamento e a qual movimento musical pertence.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cancoes %>% 
+    mutate(Música = track_name,
+           Artista = artist_name,
+           `Ano de lançamento` = year,
+           `Movimento musical` = style) %>% 
+    select(Música, Artista, `Ano de lançamento`, `Movimento musical`)
+
+```
+
+Ps.: Os dados foram extraídos das seguintes playlists:
+
+- [Só as poderosas - Bossa nova](https://open.spotify.com/user/ivynasantino/playlist/5N1iCCGGvmwjFtmDDSUYrL?si=zkYXOSvoSr6jzIiBjbNb9w)
+
+- [Só as poderosas - Jovem guarda](https://open.spotify.com/user/ivynasantino/playlist/6IlwuL4aXcG7XhGmNCdX1o?si=bQ8YAGc2RDmtoLZGMHHs9Q)
+
+- [Só as poderosas - Tropicalismo](https://open.spotify.com/user/ivynasantino/playlist/3LQkVGFEBjigT3F2hf6Ejp?si=5c9xT08hRlWvqhQ1FwC7mA)
+
+
+## Podemos dizer que a instrumentabilidade de uma música afeta sua popularidade?
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cancoes %>% 
+    plot_ly(y = ~instrumentalness,
+            x = ~track_popularity,
+            color = ~style,
+            text = ~paste('Música: ', track_name,
+                          '<br>Artista: ', artist_name)) %>% 
+    layout(title = "Relação entre instrumentabilidade e popularidade em uma canção",
+           yaxis = list(title = "Instrumentabilidade"),
+           xaxis = list(title = "popularidade"))
+
+```
+
+A partir dos resultados obtidos acima, podemos dizer que a maioria das músicas com popularidade alta possuem baixa instrumentabilidade, como a música Como nossos pais - Elis Regina, possuindo popularidade de 61, no entanto instrumentabilidade 0. 
+
+Também podemos notar que músicas pertencentes ao movimento da jovem guarda são pouco populares, mas sua instrumentabilidade, na maioria dos casos, tem valores altos. Dessa maneira, podemos ver que o Tropicalismo e Bossa nova são os movimentos mais populares. Talvez uma das explicações, seja o fato de possuírem,  no caso do Tropicalismo, músicas que citavam a insatistifação popular diante da ditadura militar e conquitavam o público em festivais, e no caso da Bossa, pelo fato mostrar letras mais leves e alegres que ressaltavam a brasilidade e vida boêmia do brasileiro. 
+
+### Diante disso, podemos dizer que músicas gravadas ao vivo são mais energéticas?
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cancoes %>% 
+    plot_ly(x = ~liveness,
+            y = ~energy,
+            size = ~track_popularity,
+            color = ~style,
+            type = 'scatter',
+            text = ~paste('Música: ', track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Popularidade: ', track_popularity)) %>% 
+    layout(title = "Distribuição energética em canções gravadas ao vivo",
+           xaxis = list(title = "Ao vivo"),
+           yaxis = list(title = "Energia"))
+```
+
+Primeiramente devemos deixar claro que a maioria das músicas das playlists são acústicas, por isso temos uma grande concentração de pontos com baixo índice de liveness. Mas ao deslizar um pouco sobre o gráfico, podemos notar que o Tropicalismo tem maior quantidade de pontos para músicas ao vivo, talvez pelo fato das músicas serem apresentadas em festivais de música ou shows. Dessa maneira, canções como Deus lhe Pague - Elis Regina e Carcará - Maria Bethânia possuem altos valores de energia e foram gravadas ao vivo, mas nem sempre canções gravadas ao vivo possuem altos índices de energia, temos como exemplo Pérola negra e Sim, foi você de Gal. 
+
+Outro fator que podemos destacar é a música Ne me quitte pas gravada por Maysa, adicionei a mesma canção na playlist, sendo uma gravada ao vivo e outra acústica, então podemos ver de forma mais clara a relação de energia e o estilo da gravação da música. Logo, podemos observar que a versão ao vivo possui maior energia, cerca de 423 de medida, no entanto a gravação acústica tem maior popularidade, com cerca de 14 pontos a mais na versão acústica, provavelmente pelo fato do som ser mais limpo, algo que está distante dos gritos e reações do público durante o show. 
+
+### E com relação à duração da música, implica dizer que quanto maior mais alegre é ou acontece o inverso?
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cancoes %>% 
+    plot_ly(x = ~duration_ms,
+            y = ~style,
+            type = 'scatter',
+            color = ~valence,
+            size = ~energy,
+            text = ~paste('Música: ', track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Valência: ', valence,
+                          '<br>Energia: ', energy)) %>% 
+    layout(title = "Relação entre tempo e humor das canções",
+           xaxis = list(title = "Duração da canção (ms)"),
+           yaxis = list(title = "Movimento musical"))
+
+```
+
+Podemos observar que as músicas estão em um intervalo de duração, entre 100k e 300k. Dessa forma, canções como Opinião - Maria Bethânia e Vapor Barato - Gal Costa estão fora da faixa citada acima e com baixos valores de valência e energia, caracterizando um humor de tristeza nessas músicas, no entanto suas durações estão em lados totalmente opostos. Logo características de tristeza ou alegria em uma canção não está atrelada a duração da faixa.
+Outra observação interessante é que Nara Leão e Maria Bethânia cantam a mesma música(Opinião), mas como podemos ver acima os valores de valência são totalmente diferentes, pois ao escutar a música, podemos notar que Nara Leão acrescenta elementos da Bossa nova, com a adição de instrumentos e de uma melodia mais "alegre" a sua interpretação para a faixa, enquanto Maria Bethânia coloca sua marca, com interpretações mais lentas e com poucos instrumentos acompanhamento a voz.
+
+
+## Existe algum padrão instrumental, entre as músicas em cada movimento? Ex.: são mais dançantes, possuem muita fala.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#2
+cancoes %>% 
+    plot_ly(x = ~danceability,
+            y = ~track_popularity,
+            type = 'scatter',
+            color = ~style,
+            size = ~energy,
+            text = ~paste('Música: ', track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Energia: ', energy)) %>% 
+    layout(title = "Relação entre dançabilidade e popularidade em uma canção",
+           xaxis = list(title = "Dançabilidade"),
+           yaxis = list(title = "Popularidade"))
+    
+cancoes %>% 
+    plot_ly(x = ~speechiness,
+            y = ~instrumentalness,
+            type = 'scatter',
+            color = ~style,
+            size = ~track_popularity,
+            text = ~paste('Música: ', track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Popularidade: ', track_popularity)) %>% 
+    layout(title = "Discurso em uma canção",
+           xaxis = list(title = "Discurso"),
+           yaxis = list(title = "Instrumentabilidade"))
+    
+cancoes %>% 
+    plot_ly(y = ~instrumentalness,
+            x = ~track_popularity,
+            type = 'scatter',
+            size = ~acousticness,
+            color = ~style,
+            text = ~paste('Música: ', track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Acústica: ', acousticness)) %>% 
+    layout(title = "Relação entre instrumentabilidade, acústica e popularidade em uma canção",
+           xaxis = list(title = "Popularidade"),
+           yaxis = list(title = "Instrumentabilidade"))
+    
+
+```
+
+Cada movimento teve sua particularidade, empiricamente temos conhecimentos de que a jovem guarda foi marcado por músicas animadas, que agitaram a juventude de muitos na década de 60, a Bossa nova pela música da boêmia e de clubes brasileiros, e o Tropicalismo marcado pela música de protesto aos anos de chumbo no Brasil. Então a partir disso, podemos observar alguns padrões diante fatores como a dançabilidade, discurso, acústica e instrumentabilidade em cada canção. 
+
+Diante dos dados, podemos notar que músicas da jovem guarda não são muito populares, mas possuem altos índices de dançabilidade, mostrando um certo padrão entre as músicas.
+Já na em canções com altos valores para discurso(speechiness), os dados trazem o Tropicalismo e algumas músicas da jovem guarda, uma surpresa, mas não o padrão para ambos os movimentos. Já para a Bossa nova, temos a maior presença de canções acústicas e alta popularidade e, em questões de popularidade o Tropicalismo também se destaca.
+
+### Podemos notar que as cantoras Elis e Nara pertecem a dois movimentos musicais, a Bossa e Tropicalismo. Dessa forma, suas músicas são mais populares em qual dos movimentos?
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cancoes %>% 
+    filter(artist_name %in% c("Elis Regina", "Nara Leão")) %>% 
+    plot_ly(y = ~track_popularity,
+            x = ~track_name,
+            color = ~style,
+            type = 'scatter',
+            mode = 'line',
+            text = ~paste("Música: ", track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Ano: ', year)) %>% 
+    layout(title = "Elis e Nara: Bossa vs Tropicalismo",
+           xaxis = list(title = ""),
+           yaxis = list(title = "Popularidade"))
+```
+
+Embora as artistas pertençam aos dois movimentos musicais, suas músicas são mais populares com a Bossa, mesmo tendo Lindonéia e Deus lhe pague com altos índices popularidade não conseguem superar as faixas de grande sucesso da Bossa nova.
+
+
+### Ao longo do tempo, as músicas de cada movimento ficam mais populares ou o movimento vai enfraquecendo?
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cancoes %>% 
+    plot_ly(y = ~track_popularity,
+            x = ~year,
+            color = ~style,
+            type = 'scatter',
+            size = ~track_popularity,
+            text = ~paste("Música: ", track_name,
+                          '<br>Artista: ', artist_name,
+                          '<br>Ano: ', year,
+                          '<br>Popularidade: ', track_popularity)) %>% 
+    layout(title = "Distribuição da popularidade das canções ao decorrer das décadas",
+           xaxis = list(title = "Década"),
+           yaxis = list(title = "Popularidade"))
+```
+
+Com o passar do tempo, o movimento da jovem guarda vai perdendo sua popularidade, já que na década de 60 estava em alta, mas no início da década de 70 vai enfraquecendo. Já o Tropicalismo, vai ganhando popularidade ao decorrer dos anos e podemos notar que as artistas que estamos analisando produziram muito em menos de 10 anos para esse movimento, pois há uma grande concentração das músicas entre a década de 60 e 70, este fato ocorre devido a implantação da ditadura militar durante esses anos e o surgimento do álbum Tropicália e da força dos festivais de músicas. Já a Bossa, também foi perdendo força ao longo dos anos, no entanto permaneceu por mais tempo desde a década de 50 até 80.
+
+Diante dessas análises acima, podemos perceber alguns padrões nas músicas de cada movimento, descobrir fatos curiosos com relação ao humor que cada canção desperta no público. Lembrando que esses dados são fornecidos pela API do Spotify, dessa forma alguns desses dados podem estar impressisos.
